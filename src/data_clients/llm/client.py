@@ -13,13 +13,16 @@ from data_clients.exceptions import LLMError
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_MODEL = os.environ.get("DEFAULT_LLM_MODEL", "claude-haiku-4-5-20251001")
+
+
 class LLMClient:
     """Synchronous wrapper around the Anthropic SDK."""
 
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str = DEFAULT_MODEL,
         max_retries: int = 3,
     ):
         if not api_key and not os.environ.get("ANTHROPIC_API_KEY"):
@@ -46,12 +49,16 @@ class LLMClient:
     def generate(
         self,
         system_prompt: str,
-        user_content: str,
+        user_content: str | list[dict],
         max_tokens: int = 4096,
         temperature: float = 0.3,
         model: str | None = None,
     ) -> dict:
         """Send a message to Claude and return the response with usage info.
+
+        Args:
+            user_content: A single string (wrapped as user message) or a list
+                of message dicts (``[{"role": ..., "content": ...}, ...]``).
 
         Returns:
             dict with keys: text, input_tokens, output_tokens, model
@@ -59,6 +66,10 @@ class LLMClient:
         from anthropic import APIError, APITimeoutError, RateLimitError
 
         use_model = model or self.model
+        if isinstance(user_content, str):
+            msgs = [{"role": "user", "content": user_content}]
+        else:
+            msgs = user_content
         for attempt in range(self.max_retries):
             try:
                 response = self._client.messages.create(
@@ -66,7 +77,7 @@ class LLMClient:
                     max_tokens=max_tokens,
                     temperature=temperature,
                     system=system_prompt,
-                    messages=[{"role": "user", "content": user_content}],
+                    messages=msgs,
                 )
                 return {
                     "text": response.content[0].text,
@@ -191,7 +202,7 @@ class AsyncLLMClient:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str = DEFAULT_MODEL,
         max_retries: int = 3,
     ):
         if not api_key and not os.environ.get("ANTHROPIC_API_KEY"):
@@ -218,15 +229,24 @@ class AsyncLLMClient:
     async def generate(
         self,
         system_prompt: str,
-        user_content: str,
+        user_content: str | list[dict],
         max_tokens: int = 4096,
         temperature: float = 0.3,
         model: str | None = None,
     ) -> dict:
-        """Send a message to Claude and return the response with usage info."""
+        """Send a message to Claude and return the response with usage info.
+
+        Args:
+            user_content: A single string (wrapped as user message) or a list
+                of message dicts (``[{"role": ..., "content": ...}, ...]``).
+        """
         from anthropic import APIError, APITimeoutError, RateLimitError
 
         use_model = model or self.model
+        if isinstance(user_content, str):
+            msgs = [{"role": "user", "content": user_content}]
+        else:
+            msgs = user_content
         for attempt in range(self.max_retries):
             try:
                 response = await self._client.messages.create(
@@ -234,7 +254,7 @@ class AsyncLLMClient:
                     max_tokens=max_tokens,
                     temperature=temperature,
                     system=system_prompt,
-                    messages=[{"role": "user", "content": user_content}],
+                    messages=msgs,
                 )
                 return {
                     "text": response.content[0].text,

@@ -7,6 +7,7 @@ from typing import List, Optional, Union
 from data_clients.gmail.attachment import Attachment
 from data_clients.gmail.label import Label
 from data_clients.gmail import label
+from data_clients.exceptions import GmailError
 
 
 class Message:
@@ -210,8 +211,8 @@ class Message:
         except HttpError as error:
             raise error
         else:
-            assert label.TRASH in res['labelIds'], \
-                'An error occurred in a call to `trash`.'
+            if label.TRASH not in res['labelIds']:
+                raise GmailError('An error occurred in a call to `trash`.')
             self.label_ids = res['labelIds']
 
     def untrash(self) -> None:
@@ -224,8 +225,8 @@ class Message:
         except HttpError as error:
             raise error
         else:
-            assert label.TRASH not in res['labelIds'], \
-                'An error occurred in a call to `untrash`.'
+            if label.TRASH in res['labelIds']:
+                raise GmailError('An error occurred in a call to `untrash`.')
             self.label_ids = res['labelIds']
 
     def move_from_inbox(self, to: Union[Label, str]) -> None:
@@ -263,9 +264,9 @@ class Message:
         except HttpError as error:
             raise error
         else:
-            assert all([lbl in res['labelIds'] for lbl in to_add]) \
-                and all([lbl not in res['labelIds'] for lbl in to_remove]), \
-                'An error occurred while modifying message label.'
+            if not (all(lbl in res['labelIds'] for lbl in to_add)
+                    and all(lbl not in res['labelIds'] for lbl in to_remove)):
+                raise GmailError('An error occurred while modifying message label.')
             self.label_ids = res['labelIds']
 
     def _create_update_labels(

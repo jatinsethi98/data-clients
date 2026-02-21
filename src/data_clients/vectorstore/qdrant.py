@@ -98,12 +98,13 @@ class QdrantVectorStore(BaseVectorStore):
         results: list[SearchResult] = []
         for hit in hits:
             payload = hit.payload or {}
-            text = payload.pop("_text", None)
+            text = payload.get("_text")
+            metadata = {k: v for k, v in payload.items() if k != "_text"}
             results.append(SearchResult(
                 doc_id=str(hit.id),
                 score=hit.score,
                 text=text,
-                metadata=payload,
+                metadata=metadata,
             ))
 
         return results

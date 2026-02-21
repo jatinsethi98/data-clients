@@ -155,7 +155,7 @@ class Gmail:
         if labels is None:
             labels = []
         labels.append(label.INBOX)
-        return self.get_unread_messages(user_id, labels, query)
+        return self.get_unread_messages(user_id, labels, query, attachments)
 
     def get_starred_messages(
         self, user_id='me', labels=None, query='',
@@ -261,7 +261,7 @@ class Gmail:
                     includeSpamTrash=include_spam_trash,
                     pageToken=page_token,
                 ).execute()
-                message_refs.extend(response['messages'])
+                message_refs.extend(response.get('messages', []))
 
             return self._get_messages_from_refs(user_id, message_refs, attachments)
 
@@ -475,7 +475,7 @@ class Gmail:
             data = payload['body'].get('data', '')
             if data:
                 data = base64.urlsafe_b64decode(data)
-                body = BeautifulSoup(data, 'lxml', from_encoding='utf-8').body
+                body = BeautifulSoup(data, 'html.parser', from_encoding='utf-8').body
                 return [{'part_type': 'html', 'body': str(body)}]
             return []
 
@@ -509,11 +509,11 @@ class Gmail:
         sender: str,
         to: str,
         subject: str = '',
-        msg_html: str = None,
-        msg_plain: str = None,
-        cc: List[str] = None,
-        bcc: List[str] = None,
-        attachments: List[str] = None,
+        msg_html: Optional[str] = None,
+        msg_plain: Optional[str] = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        attachments: Optional[List[str]] = None,
         signature: bool = False,
         user_id: str = 'me',
     ) -> dict:

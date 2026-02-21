@@ -11,3 +11,12 @@ build/
 .mypy_cache/
 .venv/
 *.so
+
+# Secrets — never commit
+.env
+.env.*
+token*.json
+credentials*.json
+client_secret*.json
+*.pem
+*.key

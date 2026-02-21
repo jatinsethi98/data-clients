@@ -10,6 +10,12 @@ def test_base_vectorstore_is_abstract():
         BaseVectorStore()
 
 
+def test_async_base_vectorstore_is_abstract():
+    from data_clients.vectorstore.base import AsyncBaseVectorStore
+    with pytest.raises(TypeError):
+        AsyncBaseVectorStore()
+
+
 def test_search_result_dataclass():
     result = SearchResult(
         doc_id="doc1",

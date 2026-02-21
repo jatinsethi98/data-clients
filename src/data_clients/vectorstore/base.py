@@ -59,3 +59,42 @@ class BaseVectorStore(ABC):
     def count(self) -> int:
         """Total number of documents in the store."""
         ...
+
+
+class AsyncBaseVectorStore(ABC):
+    """Abstract async interface for vector storage and retrieval."""
+
+    @abstractmethod
+    async def add(self, doc_id: str, text: str, embedding: list[float], metadata: dict) -> None:
+        ...
+
+    @abstractmethod
+    async def add_batch(
+        self,
+        ids: list[str],
+        texts: list[str],
+        embeddings: list[list[float]],
+        metadatas: list[dict],
+    ) -> None:
+        ...
+
+    @abstractmethod
+    async def search(
+        self,
+        query_embedding: list[float],
+        n_results: int = 10,
+        filters: dict | None = None,
+    ) -> list[SearchResult]:
+        ...
+
+    @abstractmethod
+    async def delete(self, doc_id: str) -> None:
+        ...
+
+    @abstractmethod
+    async def delete_batch(self, doc_ids: list[str]) -> None:
+        ...
+
+    @abstractmethod
+    async def count(self) -> int:
+        ...

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=70.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-clients"
+version = "0.1.0"
+description = "Shared data-access clients for external services"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+gmail = [
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
+    "beautifulsoup4>=4.12.0",
+    "python-dateutil>=2.9.0",
+]
+contacts = ["pyobjc-framework-Contacts>=10.0"]
+calendar = [
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
+]
+web = ["httpx>=0.28.0", "beautifulsoup4>=4.12.0"]
+llm = ["anthropic>=0.40.0"]
+embeddings = ["voyageai>=0.3.0", "httpx>=0.28.0"]
+vectorstore-chroma = ["chromadb>=0.5.0"]
+vectorstore-qdrant = ["qdrant-client>=1.12.0"]
+all = ["data-clients[gmail,contacts,calendar,web,llm,embeddings,vectorstore-chroma,vectorstore-qdrant]"]
+dev = ["pytest>=8.0.0", "pytest-cov>=5.0.0", "pytest-asyncio>=0.24.0", "ruff>=0.5.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

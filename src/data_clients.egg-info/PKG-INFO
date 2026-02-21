@@ -1,0 +1,36 @@
+Metadata-Version: 2.4
+Name: data-clients
+Version: 0.1.0
+Summary: Shared data-access clients for external services
+Requires-Python: >=3.11
+Provides-Extra: gmail
+Requires-Dist: google-api-python-client>=2.100.0; extra == "gmail"
+Requires-Dist: google-auth-httplib2>=0.2.0; extra == "gmail"
+Requires-Dist: google-auth-oauthlib>=1.2.0; extra == "gmail"
+Requires-Dist: beautifulsoup4>=4.12.0; extra == "gmail"
+Requires-Dist: python-dateutil>=2.9.0; extra == "gmail"
+Provides-Extra: contacts
+Requires-Dist: pyobjc-framework-Contacts>=10.0; extra == "contacts"
+Provides-Extra: calendar
+Requires-Dist: google-api-python-client>=2.100.0; extra == "calendar"
+Requires-Dist: google-auth-httplib2>=0.2.0; extra == "calendar"
+Requires-Dist: google-auth-oauthlib>=1.2.0; extra == "calendar"
+Provides-Extra: web
+Requires-Dist: httpx>=0.28.0; extra == "web"
+Requires-Dist: beautifulsoup4>=4.12.0; extra == "web"
+Provides-Extra: llm
+Requires-Dist: anthropic>=0.40.0; extra == "llm"
+Provides-Extra: embeddings
+Requires-Dist: voyageai>=0.3.0; extra == "embeddings"
+Requires-Dist: httpx>=0.28.0; extra == "embeddings"
+Provides-Extra: vectorstore-chroma
+Requires-Dist: chromadb>=0.5.0; extra == "vectorstore-chroma"
+Provides-Extra: vectorstore-qdrant
+Requires-Dist: qdrant-client>=1.12.0; extra == "vectorstore-qdrant"
+Provides-Extra: all
+Requires-Dist: data-clients[calendar,contacts,embeddings,gmail,llm,vectorstore-chroma,vectorstore-qdrant,web]; extra == "all"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=5.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.24.0; extra == "dev"
+Requires-Dist: ruff>=0.5.0; extra == "dev"

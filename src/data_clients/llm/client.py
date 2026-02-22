@@ -6,7 +6,8 @@ import asyncio
 import logging
 import os
 import time
-from typing import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Iterator
 
 from data_clients.exceptions import LLMError
 
@@ -370,3 +371,111 @@ class AsyncLLMClient:
                 raise LLMError(f"Claude API error: {e}") from e
 
         raise LLMError(f"Failed after {self.max_retries} retries")
+
+    @asynccontextmanager
+    async def stream_with_tools(
+        self,
+        system_prompt: str,
+        messages: list[dict],
+        tools: list[dict],
+        max_tokens: int = 4096,
+        temperature: float = 0.3,
+        model: str | None = None,
+    ):
+        """Stream a response that may include tool calls.
+
+        Usage::
+
+            async with client.stream_with_tools(system, msgs, tools) as stream:
+                async for chunk in stream.text_stream:
+                    print(chunk, end="")
+            result = stream.result  # available after context manager exits
+
+        Yields a ``ToolStreamResult`` whose ``.text_stream`` is an async
+        iterator of text deltas and whose ``.result`` dict (populated after
+        the caller finishes iterating) contains ``text``, ``tool_calls``,
+        ``stop_reason``, ``input_tokens``, ``output_tokens``, and ``model``.
+        """
+        from anthropic import APIError, APITimeoutError, RateLimitError
+
+        use_model = model or self.model
+
+        for attempt in range(self.max_retries):
+            try:
+                holder = ToolStreamResult()
+                async with self._client.messages.stream(
+                    model=use_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system=system_prompt,
+                    messages=messages,
+                    tools=tools,
+                ) as raw_stream:
+                    holder._raw_stream = raw_stream
+                    yield holder
+                    # Caller has finished iterating text_stream.
+                    # Still inside the SDK stream context — extract final message.
+                    final = await raw_stream.get_final_message()
+
+                text_parts: list[str] = []
+                tool_calls: list[dict[str, Any]] = []
+                for block in final.content:
+                    if block.type == "text":
+                        text_parts.append(block.text)
+                    elif block.type == "tool_use":
+                        tool_calls.append({
+                            "name": block.name,
+                            "input": block.input,
+                            "id": block.id,
+                        })
+                # Update in-place so references captured before exit stay valid
+                holder.result.update({
+                    "text": "\n".join(text_parts),
+                    "tool_calls": tool_calls,
+                    "stop_reason": final.stop_reason,
+                    "input_tokens": final.usage.input_tokens,
+                    "output_tokens": final.usage.output_tokens,
+                    "model": use_model,
+                })
+                return  # success
+
+            except RateLimitError:
+                wait = 2 ** (attempt + 1)
+                logger.warning(f"Rate limited, retrying in {wait}s (attempt {attempt + 1})")
+                await asyncio.sleep(wait)
+            except APITimeoutError:
+                wait = 2 ** attempt
+                logger.warning(f"API timeout, retrying in {wait}s (attempt {attempt + 1})")
+                await asyncio.sleep(wait)
+            except APIError as e:
+                raise LLMError(f"Claude API error: {e}") from e
+
+        raise LLMError(f"Failed after {self.max_retries} retries")
+
+
+class ToolStreamResult:
+    """Wraps a streaming tool-use response.
+
+    Attributes:
+        text_stream: Async iterable of text chunks (reasoning text).
+            Proxies the underlying Anthropic SDK stream.
+        result: Dict with ``text``, ``tool_calls``, ``stop_reason``, etc.
+            Populated **after** the async context manager exits.
+    """
+
+    def __init__(self):
+        self._raw_stream = None
+        self.result: dict[str, Any] = {}
+
+    @property
+    def text_stream(self):
+        """Async iterable over text deltas from the response."""
+        if self._raw_stream is None:
+            return _empty_async_iter()
+        return self._raw_stream.text_stream
+
+
+async def _empty_async_iter():
+    """Empty async iterator."""
+    return
+    yield  # noqa: make this an async generator

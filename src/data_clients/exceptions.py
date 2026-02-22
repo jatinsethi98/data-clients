@@ -76,3 +76,16 @@ class EmbeddingError(DataClientError):
 # VectorStore
 class VectorStoreError(DataClientError):
     """Base exception for vector store operations."""
+
+
+# WhatsApp
+class WhatsAppError(DataClientError):
+    """Base exception for WhatsApp operations."""
+
+
+class WhatsAppReadError(WhatsAppError):
+    """Failed to read WhatsApp ChatStorage.sqlite."""
+
+
+class WhatsAppAccountNotFoundError(WhatsAppError):
+    """No WhatsApp account directories found on this machine."""

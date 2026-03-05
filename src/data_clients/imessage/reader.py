@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -15,6 +16,26 @@ CHAT_DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 
 # Apple's Core Data epoch offset (2001-01-01 vs 1970-01-01)
 APPLE_EPOCH_OFFSET = 978307200
+_PRINTABLE_SEGMENT_RE = re.compile(r"[ -~]{3,}")
+_ATTRIBUTED_SKIP_TOKENS = (
+    "streamtyped",
+    "NSAttributedString",
+    "NSMutableAttributedString",
+    "NSString",
+    "NSMutableString",
+    "NSDictionary",
+    "NSNumber",
+    "NSValue",
+    "NSData",
+    "NSMutableData",
+    "__kIM",
+    "NSKeyedArchiver",
+    "bplist00",
+    "$classes",
+    "$objects",
+    "$classname",
+    "NSObject",
+)
 
 
 class ChatDBReader:
@@ -156,6 +177,7 @@ class ChatDBReader:
                         m.ROWID,
                         m.guid,
                         m.text,
+                        m.attributedBody,
                         m.date,
                         m.is_from_me,
                         m.is_read,
@@ -182,6 +204,7 @@ class ChatDBReader:
                         m.ROWID,
                         m.guid,
                         m.text,
+                        m.attributedBody,
                         m.date,
                         m.is_from_me,
                         m.is_read,
@@ -202,10 +225,13 @@ class ChatDBReader:
 
             messages = []
             for row in rows:
+                text = row["text"] or ""
+                if not text.strip():
+                    text = self._extract_attributed_text(row["attributedBody"])
                 messages.append({
                     "rowid": row["ROWID"],
                     "guid": row["guid"],
-                    "text": row["text"] or "",
+                    "text": text,
                     "date": self._convert_timestamp(row["date"], conn),
                     "is_from_me": bool(row["is_from_me"]),
                     "is_read": bool(row["is_read"]),
@@ -220,6 +246,42 @@ class ChatDBReader:
             return messages
         finally:
             conn.close()
+
+    def _extract_attributed_text(self, attributed_body: bytes | None) -> str:
+        """Best-effort plaintext extraction from attributedBody blobs."""
+        if not attributed_body:
+            return ""
+        try:
+            decoded = attributed_body.decode("utf-8", errors="ignore")
+        except (UnicodeDecodeError, AttributeError):
+            return ""
+
+        best = ""
+        best_score = 0
+        for segment in _PRINTABLE_SEGMENT_RE.findall(decoded):
+            cleaned = segment.strip()
+            if not cleaned:
+                continue
+            if any(token in cleaned for token in _ATTRIBUTED_SKIP_TOKENS):
+                continue
+
+            # Common prefix pattern in attributedBody payloads: "+X<text>".
+            if len(cleaned) >= 2 and cleaned[0] == "+" and not cleaned[1].isspace():
+                cleaned = cleaned[2:].lstrip()
+            if cleaned[:1] in {"=", ":", "-"}:
+                cleaned = cleaned[1:].lstrip()
+
+            letters = sum(1 for ch in cleaned if ch.isalpha())
+            spaces = cleaned.count(" ")
+            if letters < 2:
+                continue
+
+            score = len(cleaned) + (spaces * 2)
+            if score > best_score:
+                best = cleaned
+                best_score = score
+
+        return best
 
     def _get_participants(self, conn: sqlite3.Connection, chat_id: int) -> list[str]:
         """Get participant handle IDs for a chat."""

@@ -89,3 +89,7 @@ class WhatsAppReadError(WhatsAppError):
 
 class WhatsAppAccountNotFoundError(WhatsAppError):
     """No WhatsApp account directories found on this machine."""
+
+
+class WhatsAppSendError(WhatsAppError):
+    """Failed to send WhatsApp message."""
